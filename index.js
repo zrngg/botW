@@ -8,26 +8,23 @@ async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state, logger: P({ level: 'silent' }) });
 
+  let isConnected = false;
+
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
+
     if (qr) {
-      console.log('Scan this QR code in your WhatsApp app to login:');
-      // Optionally generate QR here with qrcode-terminal if you want
+      console.log('Scan this QR code in your WhatsApp app to login.');
+      // You can optionally generate the QR in terminal if you want
     }
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect.error = new Boom(lastDisconnect?.error))?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
-        console.log('Connection closed. Reconnecting...');
-        startSock();
-      } else {
-        console.log('Connection closed. You are logged out.');
-      }
-    } else if (connection === 'open') {
+
+    if (connection === 'open') {
+      isConnected = true;
       console.log('✅ Connected to WhatsApp');
 
-      // Fetch and log all groups bot is in
+      // List groups the bot is in
       const groups = await sock.groupFetchAllParticipating();
       console.log('Groups bot is in:');
       for (const id in groups) {
@@ -36,7 +33,7 @@ async function startSock() {
 
       const groupId = '120363420780867020@g.us';
 
-      // Send immediate test message
+      // Send immediate test message on connect
       try {
         await sock.sendMessage(groupId, { text: 'Hello! Test message from your bot on connect.' });
         console.log('📤 Test message sent on connect');
@@ -44,9 +41,15 @@ async function startSock() {
         console.error('❌ Failed to send test message:', err);
       }
 
-      // Scheduled message every 5 minutes
+      // Schedule message every 5 minutes
       cron.schedule('*/5 * * * *', async () => {
         console.log('⏰ Cron triggered at', new Date().toLocaleTimeString());
+
+        if (!isConnected) {
+          console.log('⚠️ Socket not connected, skipping send.');
+          return;
+        }
+
         try {
           const message = await generateMessage();
           console.log('Generated message:', message);
@@ -56,6 +59,16 @@ async function startSock() {
           console.error('❌ Failed to send scheduled message:', e);
         }
       });
+
+    } else if (connection === 'close') {
+      isConnected = false;
+      const shouldReconnect = (lastDisconnect.error = new Boom(lastDisconnect?.error))?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('Connection closed. Reconnecting:', shouldReconnect);
+      if (shouldReconnect) {
+        startSock();
+      } else {
+        console.log('You are logged out. Please re-authenticate.');
+      }
     }
   });
 }
