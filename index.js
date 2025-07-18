@@ -12,6 +12,8 @@ import moment from "moment-timezone";
 
 const GROUP_ID = "120363420780867020@g.us";
 
+let sock; // Global socket variable
+
 async function fetchGoldSilver() {
   try {
     const res = await fetch("https://data-asg.goldprice.org/dbXRates/USD", {
@@ -84,14 +86,8 @@ function formatMessage(prices, crypto, forex) {
 —————————————
 Gold Ounce Price: $${prices.goldOunce.toFixed(2)}
 Silver Ounce Price: $${prices.silverOunce.toFixed(2)}
-Bitcoin Price: $${crypto.btc?.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }) || "N/A"}
-Ethereum Price: $${crypto.eth?.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }) || "N/A"}
+Bitcoin Price: $${crypto.btc?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "N/A"}
+Ethereum Price: $${crypto.eth?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "N/A"}
 XRP Price: $${crypto.xrp?.toFixed(4) || "N/A"}
 —————————————
 Gold: 🟡
@@ -113,10 +109,14 @@ Forex: 💵
 `;
 }
 
-async function waitForSocket(sock) {
+async function waitForSocketConnection(sock, timeoutMs = 30000) {
+  const start = Date.now();
   while (sock?.state?.connection !== "open") {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error("Timeout waiting for WA connection");
+    }
     console.log("⏳ Waiting for WA connection...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((res) => setTimeout(res, 2000));
   }
 }
 
@@ -140,9 +140,8 @@ async function sendUpdate(sock) {
     forex
   );
 
-  await waitForSocket(sock);
-
   try {
+    await waitForSocketConnection(sock);
     await sock.sendMessage(GROUP_ID, { text: message });
     console.log("📤 Scheduled message sent");
   } catch (err) {
@@ -154,27 +153,31 @@ async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info_multi");
   const { version } = await fetchLatestBaileysVersion();
 
-  let sock = makeWASocket({
+  sock = makeWASocket({
     version,
     auth: state,
     logger: P({ level: "silent" }),
   });
 
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+  sock.ev.on("connection.update", async (update) => {
+    console.log("Connection update:", update);
+    const { connection, lastDisconnect } = update;
+
     if (connection === "close") {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       if (statusCode === DisconnectReason.loggedOut) {
-        console.log("❌ Logged out. Re-auth required.");
+        console.log("❌ Logged out, re-auth required");
       } else {
-        console.log("🔄 Connection closed. Reconnecting...");
-        sock = await startSock();
+        console.log("🔄 Connection closed, reconnecting...");
+        await startSock(); // Reconnect and overwrite global sock
       }
     } else if (connection === "open") {
       console.log("✅ Connected to WhatsApp");
+
       try {
         await sock.sendMessage(GROUP_ID, { text: "📤 Test message sent on connect" });
       } catch (e) {
-        console.error("❌ Test message failed:", e);
+        console.error("❌ Failed to send test message:", e);
       }
     }
   });
@@ -185,10 +188,14 @@ async function startSock() {
 }
 
 (async () => {
-  const sock = await startSock();
+  await startSock();
 
   cron.schedule("* * * * *", async () => {
     console.log("⏰ Cron triggered");
+    if (!sock) {
+      console.log("❌ Socket not initialized");
+      return;
+    }
     await sendUpdate(sock);
   });
 })();
