@@ -198,7 +198,7 @@ async function sendUpdate() {
     });
 
     console.log("⏰ Starting scheduled updates...");
-    cron.schedule("* * * * *", sendUpdate); // Every minute
+    cron.schedule("*/5 * * * *", sendUpdate); // Every minute
   } catch (error) {
     console.error("🚨 Startup error:", error);
     process.exit(1);
