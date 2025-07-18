@@ -1,8 +1,0 @@
-[phases.setup]
-nixpkgsArchive = "5e239bff7007a81b92eab943bfad190f346935dd"  # ✅ This one works with Node 20
-
-[phases.install]
-cmds = ["npm install"]
-
-[start]
-cmd = "node index.js"
