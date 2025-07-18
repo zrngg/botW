@@ -1,7 +1,7 @@
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import cron from 'node-cron';
-import fetch from 'node-fetch'; // npm i node-fetch@2
+import fetch from 'node-fetch';
 import P from 'pino';
 
 async function startSock() {
@@ -14,27 +14,46 @@ async function startSock() {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
       console.log('Scan this QR code in your WhatsApp app to login:');
-      // Add qrcode-terminal if you want QR in terminal
+      // Optionally generate QR here with qrcode-terminal if you want
     }
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect.error = new Boom(lastDisconnect?.error))?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) {
+        console.log('Connection closed. Reconnecting...');
         startSock();
+      } else {
+        console.log('Connection closed. You are logged out.');
       }
-    }
-    if (connection === 'open') {
+    } else if (connection === 'open') {
       console.log('✅ Connected to WhatsApp');
+
+      // Fetch and log all groups bot is in
+      const groups = await sock.groupFetchAllParticipating();
+      console.log('Groups bot is in:');
+      for (const id in groups) {
+        console.log(` - ${groups[id].subject} | ID: ${id}`);
+      }
 
       const groupId = '120363420780867020@g.us';
 
-      // Send message every 5 minutes
+      // Send immediate test message
+      try {
+        await sock.sendMessage(groupId, { text: 'Hello! Test message from your bot on connect.' });
+        console.log('📤 Test message sent on connect');
+      } catch (err) {
+        console.error('❌ Failed to send test message:', err);
+      }
+
+      // Scheduled message every 5 minutes
       cron.schedule('*/5 * * * *', async () => {
+        console.log('⏰ Cron triggered at', new Date().toLocaleTimeString());
         try {
           const message = await generateMessage();
+          console.log('Generated message:', message);
           await sock.sendMessage(groupId, { text: message });
-          console.log('📤 Sent message at', new Date().toLocaleTimeString());
-        } catch (err) {
-          console.error('❌ Failed to send message:', err);
+          console.log('📤 Scheduled message sent');
+        } catch (e) {
+          console.error('❌ Failed to send scheduled message:', e);
         }
       });
     }
