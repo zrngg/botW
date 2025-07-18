@@ -32,7 +32,8 @@ async function fetchGoldSilver() {
 
 async function fetchCrypto() {
   try {
-    const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd";
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd";
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
     if (!res.ok) throw new Error("Failed to fetch crypto");
     return await res.json();
@@ -72,26 +73,31 @@ function calculateGoldPrices(goldOunce, silverOunce) {
 function formatMessage(prices, crypto, forex) {
   const now = moment().tz("Etc/GMT-3").format("DD MMMM YYYY | hh:mm A");
 
-  return `📅 ${now} (GMT+3)
-—————————————
-Gold Ounce: $${prices.goldOunce.toFixed(2)}
-Silver Ounce: $${prices.silverOunce.toFixed(2)}
-Bitcoin: $${crypto.bitcoin?.usd?.toLocaleString() || "N/A"}
-Ethereum: $${crypto.ethereum?.usd?.toLocaleString() || "N/A"}
-XRP: $${crypto.ripple?.usd?.toFixed(4) || "N/A"}
-—————————————
-Gold:
+  return `*${now} (GMT+3)*
+────────────────
+Gold Ounce Price: $${prices.goldOunce.toFixed(2)}
+Silver Ounce Price: $${prices.silverOunce.toFixed(2)}
+Bitcoin Price: $${crypto.bitcoin?.usd?.toLocaleString() || "N/A"}
+Ethereum Price: $${crypto.ethereum?.usd?.toLocaleString() || "N/A"}
+XRP Price: $${crypto.ripple?.usd?.toFixed(4) || "N/A"}
+────────────────
+Gold: 🟡
 Msqal 21K = $${prices.calculated["Msqal 21K"].toFixed(2)}
 Msqal 18K = $${prices.calculated["Msqal 18K"].toFixed(2)}
 Dubai Lira 7.2g = $${prices.calculated["Dubai Lira 7.2g"].toFixed(2)}
-—————————————
-Silver:
-1Kg = $${prices.calculated["Silver 1Kg"].toFixed(2)}
-—————————————
-Forex:
-100 EUR = $${(100 / (forex.rates.EUR || 1)).toFixed(2)}
-100 GBP = $${(100 / (forex.rates.GBP || 1)).toFixed(2)}
-`;
+250g 995 = $${prices.calculated["250g 995"].toFixed(2)}
+500g 995 = $${prices.calculated["500g 995"].toFixed(2)}
+1Kg 995 = $${prices.calculated["1Kg 995"].toFixed(2)}
+────────────────
+Silver: ⚪
+1Kg Price: $${prices.calculated["Silver 1Kg"].toFixed(2)}
+────────────────
+Forex: 💵
+100 EUR in USD: ${(100 / (forex.rates.EUR || 1)).toFixed(2)}
+100 GBP in USD: ${(100 / (forex.rates.GBP || 1)).toFixed(2)}
+────────────────
+تێبینی ئەونرخانە نرخی بۆرسەن
+[Suli Borsa Whatsapp](https://chat.whatsapp.com/KFrg9RiQ7yg879MVTQGWlF)`;
 }
 
 // ================== WhatsApp Connection ================== //
@@ -118,8 +124,13 @@ async function startSock() {
     }
 
     if (connection === "close") {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(`Connection closed, ${shouldReconnect ? "reconnecting" : "please relogin"}...`);
+      const shouldReconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log(
+        `Connection closed, ${
+          shouldReconnect ? "reconnecting" : "please relogin"
+        }...`
+      );
       if (shouldReconnect) startSock();
     } else if (connection === "open") {
       console.log("✅ WhatsApp connected!");
@@ -158,8 +169,14 @@ async function sendUpdate() {
       forex
     );
 
-    await sock.sendMessage(GROUP_ID, { text: message });
-    console.log("📤 Update sent successfully");
+    const imageUrl = "https://i.imgur.com/NiKMpdF.jpeg";
+
+    await sock.sendMessage(GROUP_ID, {
+      image: { url: imageUrl },
+      caption: message,
+    });
+
+    console.log("📤 Update sent successfully with image");
   } catch (error) {
     console.error("❌ Error sending update:", error.message);
   }
@@ -171,7 +188,7 @@ async function sendUpdate() {
     await startSock();
 
     // Wait for connection before starting cron
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       const checkConnection = setInterval(() => {
         if (sock?.user) {
           clearInterval(checkConnection);
