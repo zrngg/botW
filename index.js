@@ -18,30 +18,29 @@ async function startSock() {
 
     if (qr) {
       console.log('Please scan the QR code to authenticate.');
-      // Optional: you can generate QR in terminal here if you want
     }
 
     if (connection === 'open') {
       isConnected = true;
       console.log('✅ Connected to WhatsApp');
 
-      // Wait 5 seconds before sending initial test message
+      // Delay sending test message 10 seconds after connection open
       setTimeout(async () => {
         try {
           await sendWithRetry(sock, groupId, 'Hello! Test message from your bot on connect.');
         } catch (err) {
           console.error('❌ Failed to send test message after retries:', err);
         }
-      }, 5000);
+      }, 10000);
 
-      // List all groups bot is in
+      // Log groups bot is in
       const groups = await sock.groupFetchAllParticipating();
       console.log('Groups bot is in:');
       for (const id in groups) {
         console.log(` - ${groups[id].subject} | ID: ${id}`);
       }
 
-      // Schedule sending message every 5 minutes
+      // Schedule message every 5 minutes
       cron.schedule('*/5 * * * *', async () => {
         console.log('⏰ Cron triggered at', new Date().toLocaleTimeString());
 
@@ -81,7 +80,7 @@ async function sendWithRetry(sock, jid, message, retries = 3) {
     } catch (err) {
       console.error(`❌ Send attempt ${i} failed:`, err);
       if (i < retries) {
-        await new Promise(res => setTimeout(res, 3000)); // wait 3 seconds before retry
+        await new Promise(res => setTimeout(res, 3000)); // wait 3 sec before retry
       } else {
         throw err;
       }
