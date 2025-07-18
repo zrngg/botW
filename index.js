@@ -1,8 +1,9 @@
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import cron from 'node-cron';
-import fetch from 'node-fetch';
 import P from 'pino';
+
+const groupId = '120363420780867020@g.us';
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -16,32 +17,31 @@ async function startSock() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log('Scan this QR code in your WhatsApp app to login.');
-      // You can optionally generate the QR in terminal if you want
+      console.log('Please scan the QR code to authenticate.');
+      // Optional: you can generate QR in terminal here if you want
     }
 
     if (connection === 'open') {
       isConnected = true;
       console.log('✅ Connected to WhatsApp');
 
-      // List groups the bot is in
+      // Wait 5 seconds before sending initial test message
+      setTimeout(async () => {
+        try {
+          await sendWithRetry(sock, groupId, 'Hello! Test message from your bot on connect.');
+        } catch (err) {
+          console.error('❌ Failed to send test message after retries:', err);
+        }
+      }, 5000);
+
+      // List all groups bot is in
       const groups = await sock.groupFetchAllParticipating();
       console.log('Groups bot is in:');
       for (const id in groups) {
         console.log(` - ${groups[id].subject} | ID: ${id}`);
       }
 
-      const groupId = '120363420780867020@g.us';
-
-      // Send immediate test message on connect
-      try {
-        await sock.sendMessage(groupId, { text: 'Hello! Test message from your bot on connect.' });
-        console.log('📤 Test message sent on connect');
-      } catch (err) {
-        console.error('❌ Failed to send test message:', err);
-      }
-
-      // Schedule message every 5 minutes
+      // Schedule sending message every 5 minutes
       cron.schedule('*/5 * * * *', async () => {
         console.log('⏰ Cron triggered at', new Date().toLocaleTimeString());
 
@@ -53,8 +53,7 @@ async function startSock() {
         try {
           const message = await generateMessage();
           console.log('Generated message:', message);
-          await sock.sendMessage(groupId, { text: message });
-          console.log('📤 Scheduled message sent');
+          await sendWithRetry(sock, groupId, message);
         } catch (e) {
           console.error('❌ Failed to send scheduled message:', e);
         }
@@ -71,6 +70,23 @@ async function startSock() {
       }
     }
   });
+}
+
+async function sendWithRetry(sock, jid, message, retries = 3) {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      await sock.sendMessage(jid, { text: message });
+      console.log(`📤 Message sent (attempt ${i})`);
+      return;
+    } catch (err) {
+      console.error(`❌ Send attempt ${i} failed:`, err);
+      if (i < retries) {
+        await new Promise(res => setTimeout(res, 3000)); // wait 3 seconds before retry
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 async function fetchGoldSilverPrices() {
