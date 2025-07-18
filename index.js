@@ -4,7 +4,7 @@ import {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
-} from "@whiskeysockets/baileys";
+} from "@whiskeysockets/baileys"; 
 import P from "pino";
 import cron from "node-cron";
 import fetch from "node-fetch";
