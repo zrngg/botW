@@ -125,7 +125,8 @@ async function startSock() {
 
 const sock = await startSock();
 
-cron.schedule("*/10 * * * *", async () => {
+cron.schedule("* * * * *", async () => {
   console.log("⏰ Cron triggered");
   await sendGoldUpdate(sock);
 });
+
