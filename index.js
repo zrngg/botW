@@ -41,6 +41,30 @@ async function fetchForex() {
   }
 }
 
+async function fetchCrypto() {
+  // Fetch BTC, ETH, XRP prices from Binance API
+  const symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT"];
+  const prices = {};
+  try {
+    await Promise.all(
+      symbols.map(async (symbol) => {
+        const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+        if (!res.ok) throw new Error(`Failed to fetch ${symbol}`);
+        const data = await res.json();
+        prices[symbol] = parseFloat(data.price);
+      })
+    );
+    return {
+      BTC: prices["BTCUSDT"],
+      ETH: prices["ETHUSDT"],
+      XRP: prices["XRPUSDT"],
+    };
+  } catch (e) {
+    console.error("Error fetching crypto:", e);
+    return null;
+  }
+}
+
 function calculateGoldPrices(goldOunce, silverOunce) {
   const goldGram = goldOunce / 31.1;
   const silverGram = silverOunce / 31.1;
@@ -56,13 +80,16 @@ function calculateGoldPrices(goldOunce, silverOunce) {
   };
 }
 
-function formatMessage(prices, forex) {
+function formatMessage(prices, crypto, forex) {
   const now = moment().tz("Etc/GMT-3").format("DD MMMM YYYY | hh:mm A");
 
   return `*${now} (GMT+3)*
 ────────────────
 Gold Ounce Price: $${prices.goldOunce.toFixed(2)}
 Silver Ounce Price: $${prices.silverOunce.toFixed(2)}
+Bitcoin Price: $${crypto?.BTC?.toLocaleString() || "N/A"}
+Ethereum Price: $${crypto?.ETH?.toLocaleString() || "N/A"}
+XRP Price: $${crypto?.XRP?.toFixed(4) || "N/A"}
 ────────────────
 Gold: 🟡
 Msqal 21K = $${prices.calculated["Msqal 21K"].toFixed(2)}
@@ -127,9 +154,15 @@ async function sendUpdate() {
   }
 
   try {
-    const [goldSilver, forex] = await Promise.all([fetchGoldSilver(), fetchForex()]);
+    const [goldSilver, crypto, forex] = await Promise.all([
+      fetchGoldSilver(),
+      fetchCrypto(),
+      fetchForex(),
+    ]);
 
-    if (!goldSilver || !forex) throw new Error("Failed to fetch data");
+    if (!goldSilver || !crypto || !forex) {
+      throw new Error("Failed to fetch data");
+    }
 
     const message = formatMessage(
       {
@@ -137,6 +170,7 @@ async function sendUpdate() {
         silverOunce: goldSilver.xagPrice,
         calculated: calculateGoldPrices(goldSilver.xauPrice, goldSilver.xagPrice),
       },
+      crypto,
       forex
     );
 
@@ -167,7 +201,7 @@ async function sendUpdate() {
     });
 
     console.log("⏰ Starting scheduled updates...");
-    cron.schedule("*/2 * * * *", sendUpdate); // Every 5 minutes
+    cron.schedule("*/5 * * * *", sendUpdate); // Every 5 minutes
   } catch (error) {
     console.error("🚨 Startup error:", error);
     process.exit(1);
