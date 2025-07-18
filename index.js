@@ -1,186 +1,137 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
-import { Boom } from "@hapi/boom";
+// index.js
+import "dotenv/config";
+import makeWASocket, {
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  DisconnectReason
+} from "@whiskeysockets/baileys";
+import P from "pino";
 import cron from "node-cron";
-import axios from "axios";
-import pino from "pino";
+import fetch from "node-fetch";
+import moment from "moment-timezone";
 
-const log = pino({ level: "silent" });
+const GROUP_ID = "120363420780867020@g.us";
 
-const GROUP_ID = "120363420780867020@g.us"; // your WhatsApp group ID
-
-async function fetchGoldSilverPrices() {
+async function fetchPrice(url) {
   try {
-    const res = await axios.get("https://data-asg.goldprice.org/dbXRates/USD", {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    return res.data.items?.[0] ?? null;
-  } catch (e) {
-    console.error("Error fetching gold/silver prices:", e.message);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch");
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`❌ Error fetching from ${url}`, error);
     return null;
   }
 }
 
-async function fetchCryptoPrices() {
-  try {
-    const res = await axios.get(
-      "https://api.coingecko.com/api/v3/simple/price",
-      {
-        params: { ids: "bitcoin,ethereum,ripple", vs_currencies: "usd" },
-        headers: { "User-Agent": "Mozilla/5.0" },
-      }
-    );
-    return {
-      BTC: res.data.bitcoin?.usd,
-      ETH: res.data.ethereum?.usd,
-      XRP: res.data.ripple?.usd,
-    };
-  } catch (e) {
-    console.error("Error fetching crypto prices:", e.message);
-    return null;
+function formatMessage(prices) {
+  const now = moment().tz("Asia/Baghdad").format("MMMM D, YYYY at hh:mm A (GMT+3)");
+
+  return `📅 ${now}
+\n—————————————
+Gold Ounce Price: $${prices.gold}
+Silver Ounce Price: $${prices.silver}
+Bitcoin Price: $${prices.btc}
+Ethereum Price: $${prices.eth}
+XRP Price: $${prices.xrp}
+—————————————
+Gold: 🟡
+Msqal 21K = $${(prices.gold / 6.857142857).toFixed(2)}
+Msqal 18K = $${(prices.gold / 8).toFixed(2)}
+Dubai Lira 7.2g = $${((prices.gold / 31.1) * 7.2).toFixed(2)}
+250g 995 = $${((prices.gold / 31.1) * 250).toFixed(2)}
+500g 995 = $${((prices.gold / 31.1) * 500).toFixed(2)}
+1Kg 995 = $${((prices.gold / 31.1) * 1000).toFixed(2)}
+—————————————
+Silver: ⚪
+1Kg Price: $${((prices.silver / 31.1) * 1000).toFixed(2)}
+—————————————
+Forex: 💵
+100 EUR in USD: $${prices.eur}
+100 GBP in USD: $${prices.gbp}
+—————————————
+💬 تەیبینی ئەونرخانە نرخی بۆرسەن`;
+}
+
+async function waitForSocketConnection(sock) {
+  while (sock?.state?.connection !== "open") {
+    console.log("⏳ Waiting for WA connection...");
+    await new Promise((res) => setTimeout(res, 2000));
   }
 }
 
-async function fetchForexRates() {
-  try {
-    const res = await axios.get("https://open.er-api.com/v6/latest/USD");
-    const rates = res.data.rates;
-    return {
-      EUR_to_USD: rates?.EUR ? 1 / rates.EUR : null,
-      GBP_to_USD: rates?.GBP ? 1 / rates.GBP : null,
-    };
-  } catch (e) {
-    console.error("Error fetching forex rates:", e.message);
-    return null;
-  }
-}
+async function sendGoldUpdate(sock) {
+  const [gold, silver, crypto, forex] = await Promise.all([
+    fetchPrice("https://api.metals.live/v1/spot/gold"),
+    fetchPrice("https://api.metals.live/v1/spot/silver"),
+    fetchPrice("https://api.binance.com/api/v3/ticker/price?symbols=[\"BTCUSDT\",\"ETHUSDT\",\"XRPUSDT\"]"),
+    fetchPrice("https://api.exchangerate.host/latest?base=EUR&symbols=USD,GBP")
+  ]);
 
-function calculateGoldPrices(goldOunce, silverOunce) {
-  const goldGram = goldOunce / 31.1;
-  const silverGram = silverOunce / 31.1;
-  return {
-    "Msqal 21K": goldGram * 0.875 * 5,
-    "Msqal 18K": goldGram * 0.75 * 5,
-    "Dubai Lira 7.2g": goldGram * 0.916 * 7.2,
-    "250g 995": goldGram * 0.995 * 250,
-    "500g 995": goldGram * 0.995 * 500,
-    "1Kg 995": goldGram * 0.995 * 1000,
-    "Silver 1Kg": silverGram * 1000,
+  if (!gold || !silver || !crypto || !forex) return;
+
+  const prices = {
+    gold: gold[0],
+    silver: silver[0],
+    btc: Number(crypto.find((c) => c.symbol === "BTCUSDT")?.price).toLocaleString(),
+    eth: Number(crypto.find((c) => c.symbol === "ETHUSDT")?.price).toLocaleString(),
+    xrp: Number(crypto.find((c) => c.symbol === "XRPUSDT")?.price).toFixed(4),
+    eur: (forex.rates.USD).toFixed(2),
+    gbp: (forex.rates.USD / forex.rates.GBP).toFixed(2)
   };
-}
 
-function generateMessage(goldData, cryptoData, forexData) {
-  if (!goldData) return "❌ Couldn't fetch gold/silver prices.";
+  const finalMessage = formatMessage(prices);
+  await waitForSocketConnection(sock);
 
-  const goldOunce = goldData.xauPrice;
-  const silverOunce = goldData.xagPrice;
-  if (!goldOunce || !silverOunce) return "❌ Missing ounce prices.";
-
-  const prices = calculateGoldPrices(goldOunce, silverOunce);
-
-  const btc = cryptoData?.BTC ? `$${cryptoData.BTC.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` : "N/A";
-  const eth = cryptoData?.ETH ? `$${cryptoData.ETH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` : "N/A";
-  const xrp = cryptoData?.XRP ? `$${cryptoData.XRP.toFixed(4)}` : "N/A";
-
-  const eur = forexData?.EUR_to_USD ? (forexData.EUR_to_USD * 100).toFixed(2) : "N/A";
-  const gbp = forexData?.GBP_to_USD ? (forexData.GBP_to_USD * 100).toFixed(2) : "N/A";
-
-  const now = new Date().toLocaleString("en-US", {
-    timeZone: "Etc/GMT-3",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  return (
-    `${now} (GMT+3)\n` +
-    "——————————————————\n" +
-    `Gold Ounce Price: $${goldOunce.toFixed(2)}\n` +
-    `Silver Ounce Price: $${silverOunce.toFixed(2)}\n` +
-    `Bitcoin Price: ${btc}\n` +
-    `Ethereum Price: ${eth}\n` +
-    `XRP Price: ${xrp}\n` +
-    "——————————————————\n" +
-    "Gold: 🟡\n" +
-    `Msqal 21K = $${prices["Msqal 21K"].toFixed(2)}\n` +
-    `Msqal 18K = $${prices["Msqal 18K"].toFixed(2)}\n` +
-    `Dubai Lira 7.2g = $${prices["Dubai Lira 7.2g"].toFixed(2)}\n` +
-    `250g 995 = $${prices["250g 995"].toFixed(2)}\n` +
-    `500g 995 = $${prices["500g 995"].toFixed(2)}\n` +
-    `1Kg 995 = $${prices["1Kg 995"].toFixed(2)}\n` +
-    "——————————————————\n" +
-    "Silver: ⚪\n" +
-    `1Kg Price: $${prices["Silver 1Kg"].toFixed(2)}\n` +
-    "——————————————————\n" +
-    "Forex: 💵\n" +
-    `100 EUR in USD: ${eur}\n` +
-    `100 GBP in USD: ${gbp}\n` +
-    "——————————————————\n" +
-    "تێبینی ئەونرخانە نرخی بۆرسەن"
-  );
+  try {
+    await sock.sendMessage(GROUP_ID, { text: finalMessage });
+    console.log("📤 Scheduled message sent");
+  } catch (error) {
+    console.error("❌ Failed to send scheduled message", error);
+  }
 }
 
 async function startSock() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth_info");
-  const sock = makeWASocket({ auth: state, logger: log });
+  const { state, saveCreds } = await useMultiFileAuthState("auth_info_multi");
+  const { version } = await fetchLatestBaileysVersion();
 
-  sock.ev.on("creds.update", saveCreds);
+  const sock = makeWASocket({
+    version,
+    auth: state,
+    logger: P({ level: "silent" })
+  });
 
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-    if (qr) {
-      console.log("Scan the QR code to login:");
-      // You can use qrcode-terminal if you want here
-    }
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      console.log("Connection closed. Status code:", statusCode);
-      if (statusCode !== DisconnectReason.loggedOut) {
-        console.log("Reconnecting...");
-        startSock();
+      const reason = lastDisconnect?.error?.output?.statusCode;
+      if (reason === DisconnectReason.loggedOut) {
+        console.log("❌ Logged out. Re-auth required.");
       } else {
-        console.log("Logged out, please delete auth_info folder and re-run.");
+        console.log("🔄 Connection closed. Reconnecting...");
+        startSock();
       }
     } else if (connection === "open") {
       console.log("✅ Connected to WhatsApp");
 
-      // Print all groups with names and IDs
       const groups = await sock.groupFetchAllParticipating();
-      console.log("Groups bot is in:");
-      for (const id in groups) {
-        console.log(` - ${groups[id].subject} | ID: ${id}`);
-      }
+      const groupNames = Object.values(groups).map((g) => ` - ${g.subject} | ID: ${g.id}`);
+      console.log("Groups bot is in:\n" + groupNames.join("\n"));
 
-      // Send a test message on connect
       try {
-        await sock.sendMessage(GROUP_ID, { text: "Bot connected and running!" });
-        console.log("📤 Test message sent on connect");
-      } catch (e) {
-        console.error("❌ Failed to send test message:", e.message);
+        await sock.sendMessage(GROUP_ID, { text: "📤 Test message sent on connect" });
+      } catch (err) {
+        console.error("❌ Failed to send test message", err);
       }
-
-      // Schedule message every 10 minutes
-      cron.schedule("*/10 * * * *", async () => {
-        console.log("⏰ Cron triggered at", new Date().toLocaleTimeString());
-
-        try {
-          const goldData = await fetchGoldSilverPrices();
-          const cryptoData = await fetchCryptoPrices();
-          const forexData = await fetchForexRates();
-
-          const msg = generateMessage(goldData, cryptoData, forexData);
-          console.log("Generated message:", msg);
-
-          await sock.sendMessage(GROUP_ID, { text: msg });
-          console.log("📤 Scheduled message sent");
-        } catch (e) {
-          console.error("❌ Failed to send scheduled message:", e.message);
-        }
-      });
     }
   });
+
+  sock.ev.on("creds.update", saveCreds);
+  return sock;
 }
 
-startSock().catch(console.error);
+const sock = await startSock();
+
+cron.schedule("*/10 * * * *", async () => {
+  console.log("⏰ Cron triggered");
+  await sendGoldUpdate(sock);
+});
