@@ -9,13 +9,13 @@ import P from "pino";
 import cron from "node-cron";
 import fetch from "node-fetch";
 import moment from "moment-timezone";
-import qrcode from "qrcode-terminal"; // For terminal QR display
+import qrcode from "qrcode-terminal";
 
-const GROUP_ID = "120363420780867020@g.us"; // Replace with your group ID
+const GROUP_ID = "120363420780867020@g.us";
 
-let sock; // Global socket variable
+let sock;
 
-// ================== Helper Functions ================== //
+// ========== FETCH FUNCTIONS ========== //
 async function fetchGoldSilver() {
   try {
     const res = await fetch("https://data-asg.goldprice.org/dbXRates/USD", {
@@ -32,10 +32,19 @@ async function fetchGoldSilver() {
 
 async function fetchCrypto() {
   try {
-    const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd";
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) throw new Error("Failed to fetch crypto");
-    return await res.json();
+    const urls = [
+      "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
+      "https://api.binance.com/api/v3/ticker/price?symbol=XRPUSDT",
+    ];
+    const results = await Promise.all(urls.map(url => fetch(url)));
+    const [btc, eth, xrp] = await Promise.all(results.map(res => res.json()));
+
+    return {
+      bitcoin: { usd: parseFloat(btc.price) },
+      ethereum: { usd: parseFloat(eth.price) },
+      ripple: { usd: parseFloat(xrp.price) },
+    };
   } catch (e) {
     console.error("Error fetching crypto:", e);
     return null;
@@ -54,6 +63,7 @@ async function fetchForex() {
   }
 }
 
+// ========== CALCULATIONS & FORMAT ========== //
 function calculateGoldPrices(goldOunce, silverOunce) {
   const goldGram = goldOunce / 31.1;
   const silverGram = silverOunce / 31.1;
@@ -94,24 +104,21 @@ Forex:
 `;
 }
 
-// ================== WhatsApp Connection ================== //
+// ========== WHATSAPP SETUP ========== //
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info_multi");
   const { version } = await fetchLatestBaileysVersion();
 
-  const socketConfig = {
+  sock = makeWASocket({
     version,
     auth: state,
-    logger: P({ level: "silent" }),
-    printQRInTerminal: false, // We'll handle QR ourselves
-  };
-
-  sock = makeWASocket(socketConfig);
+    logger: P({ level: "info" }),
+    printQRInTerminal: false,
+  });
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    // Display QR code in terminal
     if (qr) {
       console.log("🔍 Scan this QR code with WhatsApp:");
       qrcode.generate(qr, { small: true });
@@ -119,7 +126,7 @@ async function startSock() {
 
     if (connection === "close") {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(`Connection closed, ${shouldReconnect ? "reconnecting" : "please relogin"}...`);
+      console.log(`Connection closed, ${shouldReconnect ? "reconnecting..." : "please re-authenticate"}`);
       if (shouldReconnect) startSock();
     } else if (connection === "open") {
       console.log("✅ WhatsApp connected!");
@@ -127,10 +134,26 @@ async function startSock() {
   });
 
   sock.ev.on("creds.update", saveCreds);
+
+  // Reply to ping & log all messages
+  sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message || msg.key.fromMe) return;
+
+    const sender = msg.key.remoteJid;
+    const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+
+    console.log(`📥 Received from ${sender}: ${text}`);
+
+    if (text?.toLowerCase() === "!ping") {
+      await sock.sendMessage(sender, { text: "pong 🏓" });
+    }
+  });
+
   return sock;
 }
 
-// ================== Message Sending ================== //
+// ========== MESSAGE SENDING ========== //
 async function sendUpdate() {
   if (!sock?.user) {
     console.log("⏸ Skipping - WhatsApp not connected");
@@ -158,19 +181,21 @@ async function sendUpdate() {
       forex
     );
 
-    await sock.sendMessage(GROUP_ID, { text: message });
-    console.log("📤 Update sent successfully");
+    await sock.sendMessage(GROUP_ID, { text: message }).then(() => {
+      console.log("📤 Update sent successfully");
+    }).catch((err) => {
+      console.error("❌ Failed to send message:", err);
+    });
   } catch (error) {
     console.error("❌ Error sending update:", error.message);
   }
 }
 
-// ================== Main Execution ================== //
+// ========== MAIN ==========
 (async () => {
   try {
     await startSock();
 
-    // Wait for connection before starting cron
     await new Promise(resolve => {
       const checkConnection = setInterval(() => {
         if (sock?.user) {
@@ -179,6 +204,9 @@ async function sendUpdate() {
         }
       }, 1000);
     });
+
+    // 🧪 Send test message on startup
+    await sock.sendMessage(GROUP_ID, { text: "✅ Bot connected and ready!" });
 
     console.log("⏰ Starting scheduled updates...");
     cron.schedule("* * * * *", sendUpdate); // Every minute
