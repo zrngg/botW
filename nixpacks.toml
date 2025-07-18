@@ -1,0 +1,11 @@
+[phases.setup]
+nixpkgsArchive = "8f20cd0f12b2b8f82249a765a8a9f72f0b7fd9c5" # This enables Node 20.x
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node index.js"
