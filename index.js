@@ -1,11 +1,5 @@
-// index.js
 import "dotenv/config";
-import makeWASocket from "@whiskeysockets/baileys";
-import {
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason
-} from "@whiskeysockets/baileys";
+import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from "@whiskeysockets/baileys";
 import P from "pino";
 import cron from "node-cron";
 import fetch from "node-fetch";
@@ -17,8 +11,7 @@ async function fetchPrice(url) {
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Failed to fetch");
-    const data = await response.json();
-    return data;
+    return response.json();
   } catch (error) {
     console.error(`❌ Error fetching from ${url}`, error);
     return null;
@@ -66,7 +59,7 @@ async function sendGoldUpdate(sock) {
     fetchPrice("https://api.metals.live/v1/spot/gold"),
     fetchPrice("https://api.metals.live/v1/spot/silver"),
     fetchPrice('https://api.binance.com/api/v3/ticker/price?symbols=["BTCUSDT","ETHUSDT","XRPUSDT"]'),
-    fetchPrice("https://api.exchangerate.host/latest?base=EUR&symbols=USD,GBP")
+    fetchPrice("https://api.exchangerate.host/latest?base=EUR&symbols=USD,GBP"),
   ]);
 
   if (!gold || !silver || !crypto || !forex) return;
@@ -77,8 +70,8 @@ async function sendGoldUpdate(sock) {
     btc: Number(crypto.find((c) => c.symbol === "BTCUSDT")?.price).toLocaleString(),
     eth: Number(crypto.find((c) => c.symbol === "ETHUSDT")?.price).toLocaleString(),
     xrp: Number(crypto.find((c) => c.symbol === "XRPUSDT")?.price).toFixed(4),
-    eur: (forex.rates.USD).toFixed(2),
-    gbp: (forex.rates.USD / forex.rates.GBP).toFixed(2)
+    eur: forex.rates.USD.toFixed(2),
+    gbp: (forex.rates.USD / forex.rates.GBP).toFixed(2),
   };
 
   const finalMessage = formatMessage(prices);
@@ -99,13 +92,13 @@ async function startSock() {
   const sock = makeWASocket({
     version,
     auth: state,
-    logger: P({ level: "silent" })
+    logger: P({ level: "silent" }),
   });
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "close") {
-      const reason = lastDisconnect?.error?.output?.statusCode;
-      if (reason === DisconnectReason.loggedOut) {
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      if (statusCode === DisconnectReason.loggedOut) {
         console.log("❌ Logged out. Re-auth required.");
       } else {
         console.log("🔄 Connection closed. Reconnecting...");
