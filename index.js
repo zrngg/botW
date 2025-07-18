@@ -1,6 +1,7 @@
 // index.js
 import "dotenv/config";
-import makeWASocket, {
+import makeWASocket from "@whiskeysockets/baileys";
+import {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason
@@ -64,7 +65,7 @@ async function sendGoldUpdate(sock) {
   const [gold, silver, crypto, forex] = await Promise.all([
     fetchPrice("https://api.metals.live/v1/spot/gold"),
     fetchPrice("https://api.metals.live/v1/spot/silver"),
-    fetchPrice("https://api.binance.com/api/v3/ticker/price?symbols=[\"BTCUSDT\",\"ETHUSDT\",\"XRPUSDT\"]"),
+    fetchPrice('https://api.binance.com/api/v3/ticker/price?symbols=["BTCUSDT","ETHUSDT","XRPUSDT"]'),
     fetchPrice("https://api.exchangerate.host/latest?base=EUR&symbols=USD,GBP")
   ]);
 
@@ -108,7 +109,7 @@ async function startSock() {
         console.log("❌ Logged out. Re-auth required.");
       } else {
         console.log("🔄 Connection closed. Reconnecting...");
-        startSock();
+        await startSock();
       }
     } else if (connection === "open") {
       console.log("✅ Connected to WhatsApp");
