@@ -1,7 +1,8 @@
 FROM node:20-slim
 
-# Install Chromium dependencies
-RUN apt-get update && apt-get install -y \
+# Install Chromium and dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     ca-certificates \
@@ -40,21 +41,22 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     xdg-utils \
     curl \
-    --no-install-recommends \
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium manually (venom-bot needs this)
-RUN apt-get update && apt-get install -y chromium
+# Puppeteer/Chromium config
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install --production
+RUN npm install --omit=dev
 
 COPY . .
 
-RUN mkdir -p tokens
+RUN mkdir -p tokens && chown -R node:node tokens
+USER node
 
 EXPOSE 3000
-
 CMD ["npm", "start"]
