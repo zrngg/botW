@@ -1,10 +1,7 @@
-# Use official Node.js slim base image
 FROM node:20-slim
 
-# Install Chromium and required dependencies
 RUN apt-get update && apt-get install -y \
-    chromium \
-    chromium-driver \
+    chromium-browser \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -33,36 +30,17 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libxtst6 \
     ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libatspi2.0-0 \
-    libdbusmenu-glib4 \
-    libdbusmenu-gtk3-4 \
-    libgtk-3-0 \
-    libxss1 \
     xdg-utils \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Set environment variable for Chromium executable path if needed
-ENV CHROMIUM_PATH=/usr/bin/chromium
-
-# Set working directory inside container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json (if present)
 COPY package*.json ./
-
-# Install node modules
 RUN npm install --production
 
-# Copy all source files
 COPY . .
 
-# Expose port if your bot uses one (optional)
-# EXPOSE 3000
+ENV CHROMIUM_PATH=/usr/bin/chromium-browser
 
-# Command to start your bot
 CMD ["node", "index.js"]
