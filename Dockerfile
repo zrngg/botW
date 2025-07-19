@@ -46,21 +46,27 @@ RUN apt-get update && \
 
 # Configure environment
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    DISPLAY=:99
 
 WORKDIR /usr/src/app
 
-# First install npm globally to ensure latest version
+# Install latest npm
 RUN npm install -g npm@latest
 
 COPY package*.json ./
 
-# Install dependencies with legacy peer deeps to avoid conflicts
+# Install dependencies
 RUN npm install --legacy-peer-deps --omit=dev
 
 COPY . .
 
-RUN mkdir -p tokens && chown -R node:node tokens
+# Create directory and set permissions
+RUN mkdir -p /tmp/chrome && \
+    chmod -R 777 /tmp/chrome && \
+    mkdir -p tokens && \
+    chown -R node:node tokens
+
 USER node
 
 EXPOSE 3000
