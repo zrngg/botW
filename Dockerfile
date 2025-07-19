@@ -46,12 +46,16 @@ RUN apt-get update && \
 
 # Puppeteer/Chromium config
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PLAYWRIGHT_BROWSERS_PATH=/usr/bin
 
 WORKDIR /usr/src/app
 
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev --ignore-scripts
+
+RUN npm install -g npm@latest
+RUN npm install playwright-core
 
 COPY . .
 
