@@ -1,14 +1,20 @@
 {
   "name": "suli-borsa-bot",
   "version": "1.0.0",
+  "description": "WhatsApp bot for financial updates",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node index.js"
   },
   "dependencies": {
-    "venom-bot": "^4.0.26",
-    "puppeteer": "19.11.1",
-    "moment-timezone": "^0.5.40",
-    "node-fetch": "^3.3.1"
+    "venom-bot": "^5.0.2",
+    "node-fetch": "^3.3.2",
+    "moment-timezone": "^0.5.43",
+    "puppeteer": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
