@@ -9,10 +9,29 @@ const browserArgs = [
   '--no-first-run',
   '--no-zygote',
   '--single-process',
-  '--disable-gpu'
+  '--disable-gpu',
+  '--disable-infobars',
+  '--window-position=0,0',
+  '--ignore-certificate-errors',
+  '--ignore-certificate-errors-spki-list',
+  `--user-data-dir=/tmp/chrome`,
+  '--remote-debugging-port=9222',
+  '--remote-debugging-address=0.0.0.0'
 ];
 
 console.log('Starting WhatsApp bot...');
+
+// Clear any existing session locks
+try {
+  const fs = await import('fs');
+  const path = await import('path');
+  const sessionDir = path.join('tokens', 'suli-borsa-session');
+  if (fs.existsSync(sessionDir)) {
+    fs.rmSync(sessionDir, { recursive: true, force: true });
+  }
+} catch (err) {
+  console.log('Error cleaning session:', err);
+}
 
 create({
   session: "suli-borsa-session",
@@ -23,9 +42,15 @@ create({
   puppeteerOptions: {
     args: browserArgs,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
-    headless: true,
-    ignoreHTTPSErrors: true
-  }
+    headless: 'new',
+    ignoreHTTPSErrors: true,
+    userDataDir: '/tmp/chrome'
+  },
+  disableSpins: true,
+  disableWelcome: true,
+  updatesLog: false,
+  logQR: false,
+  autoClose: 0
 })
 .then(async (client) => {
   console.log('Bot started successfully');
@@ -53,11 +78,9 @@ async function start(client) {
     }
   };
 
-  // Send immediately and then every 5 minutes
   await sendPrices();
   setInterval(sendPrices, 5 * 60 * 1000);
   
-  // Keep alive handler
   client.onStreamChange((state) => {
     console.log('Connection state changed:', state);
   });
