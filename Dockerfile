@@ -1,5 +1,5 @@
-# Use Node.js 18 with Chromium dependencies
-FROM node:18-slim
+# Use Node.js 20 with Chromium dependencies
+FROM node:20-slim
 
 # Install necessary dependencies for Puppeteer/Chromium
 RUN apt-get update && apt-get install -y \
