@@ -2,7 +2,6 @@ import venom from "venom-bot";
 import fetch from "node-fetch";
 import moment from "moment-timezone";
 import fs from "fs";
-import puppeteer from "puppeteer"; // <-- import puppeteer
 
 const GROUP_ID = "120363420780867020@g.us";
 
@@ -99,6 +98,13 @@ Forex:
 *[Suli Borsa Telegram](https://t.me/suliborsa)*`;
 }
 
+// Keep alive function for Railway
+function keepAlive() {
+  setInterval(() => {
+    console.log(`🟢 Bot is running at ${new Date().toISOString()}`);
+  }, 5 * 60 * 1000); // Log every 5 minutes
+}
+
 venom
   .create({
     session: "suli-borsa-session",
@@ -106,15 +112,32 @@ venom
     headless: "new",
     useChrome: true,
     puppeteerOptions: {
-      executablePath: puppeteer.executablePath(), // explicit chromium path
-      args: ["--no-sandbox", "--disable-setuid-sandbox"], // required for Railway
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-extensions",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding"
+      ],
+      headless: "new"
     },
   })
   .then(async (client) => {
     console.log("✅ WhatsApp connected!");
+    
+    // Start keep alive function
+    keepAlive();
 
     async function sendUpdate() {
       try {
+        console.log("📊 Fetching market data...");
+        
         const [goldSilver, crypto, forex] = await Promise.all([
           fetchGoldSilver(),
           fetchCrypto(),
@@ -135,15 +158,14 @@ venom
           forex
         );
 
-        const imagePath = "./update.jpg"; // Make sure you have this file in the same folder!
+        const imagePath = "./update.jpg";
 
         if (!fs.existsSync(imagePath)) {
           console.warn("⚠️ Image not found, sending text only.");
           await client.sendText(GROUP_ID, message);
-          return;
+        } else {
+          await client.sendImage(GROUP_ID, imagePath, "update.jpg", message);
         }
-
-        await client.sendImage(GROUP_ID, imagePath, "update.jpg", message);
 
         console.log("📤 Update sent successfully");
       } catch (error) {
@@ -151,7 +173,13 @@ venom
       }
     }
 
+    // Send initial update
     await sendUpdate();
-    setInterval(sendUpdate, 10 * 60 * 1000); // every 10 minutes
+    
+    // Schedule updates every 10 minutes
+    setInterval(sendUpdate, 10 * 60 * 1000);
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.error("❌ WhatsApp connection failed:", error);
+    process.exit(1);
+  });
