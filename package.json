@@ -5,20 +5,25 @@
   "scripts": {
     "start": "node index.js",
     "postinstall": "if [ -f /usr/bin/chromium ]; then echo 'Chromium already installed'; else npx playwright install chromium; fi",
-    "prepare": "npm audit fix"
+    "prepare": "npm audit fix || true"
   },
   "dependencies": {
     "venom-bot": "^5.0.2",
     "puppeteer": "^22.8.2",
     "moment-timezone": "^0.5.45",
     "node-fetch": "^3.3.2",
-    "playwright-chromium": "^1.42.1"
+    "playwright-chromium": "^1.42.1",
+    "got": "^12.6.1"
   },
   "overrides": {
-    "glob": "^9.3.5",
-    "rimraf": "^5.0.5",
-    "fstream": "^1.0.12",
-    "gauge": "^4.0.4"
+    "glob": "9.3.5",
+    "rimraf": "5.0.5",
+    "fstream": "1.0.12",
+    "gauge": "4.0.4",
+    "tar-fs": "3.0.0",
+    "ws": "8.17.0",
+    "@puppeteer/browsers": "2.2.3",
+    "puppeteer-core": "22.8.2"
   },
   "engines": {
     "node": ">=18.0.0",
