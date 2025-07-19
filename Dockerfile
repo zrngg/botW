@@ -1,7 +1,7 @@
 FROM node:20-slim
 
 RUN apt-get update && apt-get install -y \
-    chromium-browser \
+    chromium \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -41,6 +41,6 @@ RUN npm install --production
 
 COPY . .
 
-ENV CHROMIUM_PATH=/usr/bin/chromium-browser
+ENV CHROMIUM_PATH=/usr/bin/chromium
 
 CMD ["node", "index.js"]
