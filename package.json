@@ -1,0 +1,14 @@
+{
+  "name": "suli-borsa-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "venom-bot": "^5.0.2",
+    "puppeteer": "^23.9.0",
+    "moment-timezone": "^0.5.45",
+    "node-fetch": "^3.3.2"
+  }
+}
