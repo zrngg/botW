@@ -44,18 +44,19 @@ RUN apt-get update && \
     chromium \
     && rm -rf /var/lib/apt/lists/*
 
-# Puppeteer/Chromium config
+# Configure environment
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PLAYWRIGHT_BROWSERS_PATH=/usr/bin
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
-RUN npm install --omit=dev --ignore-scripts
-
+# First install npm globally to ensure latest version
 RUN npm install -g npm@latest
-RUN npm install playwright-core
+
+COPY package*.json ./
+
+# Install dependencies with legacy peer deeps to avoid conflicts
+RUN npm install --legacy-peer-deps --omit=dev
 
 COPY . .
 
