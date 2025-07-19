@@ -1,68 +1,28 @@
-# Use official Node.js slim base image
-FROM node:20-slim
+import { create } from 'venom-bot';
+import fetch from 'node-fetch';
+import moment from 'moment-timezone';
 
-# Install Chromium and required dependencies
-RUN apt-get update && apt-get install -y \
-    chromium \
-    chromium-driver \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libatspi2.0-0 \
-    libdbusmenu-glib4 \
-    libdbusmenu-gtk3-4 \
-    libgtk-3-0 \
-    libxss1 \
-    xdg-utils \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+create({
+  session: "suli-borsa-session",
+  multidevice: true,
+  headless: "new",
+  useChrome: false,
+  browserArgs: ["--no-sandbox", "--disable-setuid-sandbox"],
+  executablePath: "/usr/bin/chromium"
+})
+  .then(client => start(client))
+  .catch(e => console.log(e));
 
-# Set environment variable for Chromium executable path if needed
-ENV CHROMIUM_PATH=/usr/bin/chromium
+async function start(client) {
+  const sendPrices = async () => {
+    const now = moment().tz("Asia/Baghdad").format("YYYY-MM-DD HH:mm:ss");
+    const message = `🟡 Gold & Silver Update
+📅 ${now}
 
-# Set working directory inside container
-WORKDIR /usr/src/app
-
-# Copy package.json and package-lock.json (if present)
-COPY package*.json ./
-
-# Install node modules
-RUN npm install --production
-
-# Copy all source files
-COPY . .
-
-# Expose port if your bot uses one (optional)
-# EXPOSE 3000
-
-# Command to start your bot
-CMD ["node", "index.js"]
+- Gold: $2400
+- Silver: $29`;
+    await client.sendText('120363420780867020@g.us', message);
+  };
+  sendPrices();
+  setInterval(sendPrices, 5 * 60 * 1000);
+}
