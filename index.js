@@ -2,6 +2,7 @@ import venom from "venom-bot";
 import fetch from "node-fetch";
 import moment from "moment-timezone";
 import fs from "fs";
+import puppeteer from "puppeteer"; // <-- import puppeteer
 
 const GROUP_ID = "120363420780867020@g.us";
 
@@ -104,11 +105,10 @@ venom
     multidevice: true,
     headless: "new",
     useChrome: true,
-    browserArgs: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
+    puppeteerOptions: {
+      executablePath: puppeteer.executablePath(), // explicit chromium path
+      args: ["--no-sandbox", "--disable-setuid-sandbox"], // required for Railway
+    },
   })
   .then(async (client) => {
     console.log("✅ WhatsApp connected!");
