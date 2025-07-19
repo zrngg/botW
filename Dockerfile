@@ -1,10 +1,7 @@
-FROM node:20-slim
-
-# Install Chromium with all required dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     chromium \
-    fonts-freefont-ttf \
+    chromium-driver \
+    fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
@@ -18,37 +15,29 @@ RUN apt-get update && \
     libgtk-3-0 \
     libnspr4 \
     libnss3 \
-    libpango-1.0-0 \
     libx11-6 \
+    libx11-xcb1 \
     libxcb1 \
     libxcomposite1 \
+    libxcursor1 \
     libxdamage1 \
     libxext6 \
     libxfixes3 \
+    libxi6 \
     libxrandr2 \
-    libxshmfence1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Configure environment variables
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    NODE_ENV=production \
-    DISPLAY=:99
-
-WORKDIR /usr/src/app
-
-# Install dependencies first for better caching
-COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
-
-COPY . .
-
-# Create necessary directories with proper permissions
-RUN mkdir -p /tmp/chrome-profile && \
-    chmod -R 777 /tmp/chrome-profile && \
-    mkdir -p tokens && \
-    chown -R node:node tokens
-
-USER node
-
-CMD ["npm", "start"]
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator3-1 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libdbusmenu-glib4 \
+    libdbusmenu-gtk3-4 \
+    libgtk-3-0 \
+    libxss1 \
+    xdg-utils \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
