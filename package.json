@@ -5,10 +5,15 @@
   "scripts": {
     "start": "node index.js"
   },
+  {
   "dependencies": {
+    "puppeteer": "^23.0.0",
+    "rimraf": "^4.0.0",
+    "glob": "^9.0.0",
+    "node-fetch": "^3.3.1",
     "venom-bot": "^5.0.2",
-    "puppeteer": "^23.9.0",
-    "moment-timezone": "^0.5.45",
-    "node-fetch": "^3.3.2"
+    "moment-timezone": "^0.5.45"
   }
+}
+
 }
