@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "playwright install chromium"
   },
   "dependencies": {
     "venom-bot": "^5.0.2",
-    "puppeteer": "^23.9.0",
+    "puppeteer": "^22.8.2",
     "moment-timezone": "^0.5.45",
     "node-fetch": "^3.3.2"
+  },
+  "resolutions": {
+    "glob": "^9.0.0",
+    "rimraf": "^4.0.0"
   }
 }
