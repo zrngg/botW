@@ -1,80 +1,43 @@
-import { create } from 'venom-bot';
-import moment from 'moment-timezone';
-import fs from 'fs';
-import path from 'path';
-
-const sessionPath = path.join('tokens', 'suli-borsa-session');
-
-// Ensure session directory exists
-if (!fs.existsSync('tokens')) {
-  fs.mkdirSync('tokens');
-}
-
-const browserArgs = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-accelerated-2d-canvas',
-  '--no-first-run',
-  '--no-zygote',
-  '--single-process',
-  '--disable-gpu',
-  `--user-data-dir=/tmp/chrome_profile`
-];
-
-console.log('Initializing WhatsApp bot with existing session...');
-
-create({
-  session: "suli-borsa-session",
-  multidevice: true,
-  headless: true,
-  useChrome: false,
-  browserArgs,
-  puppeteerOptions: {
-    args: browserArgs,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
-    userDataDir: '/tmp/chrome_profile'
-  },
-  disableSpins: true,
-  disableWelcome: true,
-  updatesLog: false,
-  logQR: false, // Disable QR since we're using existing session
-  autoClose: 0
-})
-.then(client => {
-  console.log('Successfully resumed existing session');
-  start(client);
-})
-.catch(async err => {
-  console.error('Session resume failed:', err);
-  // If session resume fails, try fresh authentication
-  console.log('Attempting fresh authentication...');
-  await fs.promises.rm(sessionPath, { recursive: true, force: true });
-  initializeFreshSession();
-});
-
-async function initializeFreshSession() {
-  const client = await create({
-    session: "suli-borsa-session",
-    headless: false, // Show browser for QR scan
-    logQR: true
-  });
-  start(client);
-}
-
-function start(client) {
-  const sendPrices = async () => {
-    const now = moment().tz("Asia/Baghdad").format("YYYY-MM-DD HH:mm:ss");
-    const message = `🟡 Gold & Silver Update
-📅 ${now}
-
-- Gold: $2400
-- Silver: $29`;
-    
-    await client.sendText('120363420780867020@g.us', message);
-    console.log('Prices sent at', now);
-  };
-
-  sendPrices();
-  setInterval(sendPrices, 5 * 60 * 1000);
-}
+RUN apt-get update && apt-get install -y \
+    chromium \
+    chromium-driver \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator3-1 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libdbusmenu-glib4 \
+    libdbusmenu-gtk3-4 \
+    libgtk-3-0 \
+    libxss1 \
+    xdg-utils \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
