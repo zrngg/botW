@@ -3,12 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "start": "node index.js"
+  },
+  "resolutions": {
+    "puppeteer": "^23.9.0"
   },
   "dependencies": {
     "venom-bot": "^5.0.2",
-    "puppeteer": "^23.9.0",
+    "node-fetch": "^3.3.2",
     "moment-timezone": "^0.5.45",
-    "node-fetch": "^3.3.2"
+    "puppeteer": "^23.9.0"
+  },
+  "devDependencies": {
+    "npm-force-resolutions": "^0.0.8"
   }
 }
