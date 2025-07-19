@@ -21,11 +21,9 @@ async function fetchGoldSilver() {
 
 async function fetchCrypto() {
   try {
-    // Binance BTC price
     const btcRes = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
     const btcData = await btcRes.json();
 
-    // Coingecko ETH and XRP prices
     const cgRes = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple&vs_currencies=usd"
     );
@@ -75,7 +73,7 @@ function formatMessage(prices, crypto, forex) {
   const eur = forex.rates.EUR ? (100 / forex.rates.EUR).toFixed(2) : "N/A";
   const gbp = forex.rates.GBP ? (100 / forex.rates.GBP).toFixed(2) : "N/A";
 
-  return `${now} (GMT+3)
+  return `📅 ${now} (GMT+3)
 ────────────────
 Gold Ounce: $${prices.goldOunce.toFixed(2)}
 Silver Ounce: $${prices.silverOunce.toFixed(2)}
@@ -83,23 +81,21 @@ Bitcoin: $${crypto.BTC ? crypto.BTC.toLocaleString() : "N/A"}
 Ethereum: $${crypto.ETH ? crypto.ETH.toLocaleString() : "N/A"}
 XRP: $${crypto.XRP ? crypto.XRP.toFixed(4) : "N/A"}
 ────────────────
-Gold: 🟡
+Gold:
 Msqal 21K = $${prices.calculated["Msqal 21K"].toFixed(2)}
 Msqal 18K = $${prices.calculated["Msqal 18K"].toFixed(2)}
 Dubai Lira 7.2g = $${prices.calculated["Dubai Lira 7.2g"].toFixed(2)}
 ────────────────
-Silver: ⚪
+Silver:
 1Kg = $${prices.calculated["Silver 1Kg"].toFixed(2)}
 ────────────────
-Forex: 💵
+Forex:
 100 EUR = $${eur}
 100 GBP = $${gbp}
 ────────────────
-*تێبینی ئەم نرخانە نرخی بۆرسەن*
+*تێبینی ئەونرخانە نرخی بۆرسەن*
 
-*Suli Borsa Telegram*
-https://t.me/suliborsa
-`;
+*[Suli Borsa Telegram](https://t.me/suliborsa)*`;
 }
 
 venom
@@ -107,8 +103,12 @@ venom
     session: "suli-borsa-session",
     multidevice: true,
     headless: "new",
-    disableSpins: true,
     useChrome: true,
+    browserArgs: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
   })
   .then(async (client) => {
     console.log("✅ WhatsApp connected!");
@@ -135,21 +135,15 @@ venom
           forex
         );
 
-        const imagePath = "./update.jpg"; // Make sure this file exists locally!
+        const imagePath = "./update.jpg"; // Make sure you have this file in the same folder!
 
-        // Check if image file exists
         if (!fs.existsSync(imagePath)) {
           console.warn("⚠️ Image not found, sending text only.");
           await client.sendText(GROUP_ID, message);
           return;
         }
 
-        await client.sendImage(
-          GROUP_ID,
-          imagePath,
-          "update.jpg",
-          message
-        );
+        await client.sendImage(GROUP_ID, imagePath, "update.jpg", message);
 
         console.log("📤 Update sent successfully");
       } catch (error) {
@@ -157,8 +151,7 @@ venom
       }
     }
 
-    // Send immediately, then every 5 minutes
     await sendUpdate();
-    setInterval(sendUpdate, 10 * 60 * 1000);
+    setInterval(sendUpdate, 10 * 60 * 1000); // every 10 minutes
   })
   .catch(console.error);
