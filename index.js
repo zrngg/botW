@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const SESSION_FOLDER = path.resolve('./tokens/suli-borsa-session');
+const isProd = process.env.NODE_ENV === 'production';
 
 async function removeSessionFolder() {
   try {
@@ -15,13 +16,19 @@ async function removeSessionFolder() {
 }
 
 async function startBot() {
-  await removeSessionFolder();
+  if (!isProd) {
+    // Locally, delete to avoid locked profile issues
+    await removeSessionFolder();
+  } else {
+    // On Railway (production), keep session to avoid QR scan
+    console.log('🔒 Keeping session folder in production');
+  }
 
   create({
     session: 'suli-borsa-session',
     multidevice: true,
     headless: true,
-    executablePath: '/usr/bin/chromium-browser',
+    executablePath: process.env.CHROMIUM_PATH,
     browserArgs: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
