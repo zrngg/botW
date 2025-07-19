@@ -47,21 +47,22 @@ RUN apt-get update && \
 # Configure environment
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    DISPLAY=:99
+    DISPLAY=:99 \
+    NODE_ENV=production
 
 WORKDIR /usr/src/app
 
-# Install latest npm
-RUN npm install -g npm@latest
+# Install latest npm and clear cache
+RUN npm install -g npm@latest && npm cache clean --force
 
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps --omit=dev
+# Install production dependencies with force
+RUN npm install --legacy-peer-deps --omit=dev --force
 
 COPY . .
 
-# Create directory and set permissions
+# Create directories with proper permissions
 RUN mkdir -p /tmp/chrome && \
     chmod -R 777 /tmp/chrome && \
     mkdir -p tokens && \
