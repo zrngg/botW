@@ -1,7 +1,6 @@
-# Use Node.js 20 with Chromium dependencies
 FROM node:20-slim
 
-# Install necessary dependencies for Puppeteer/Chromium
+# Install Chromium dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -40,27 +39,28 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     lsb-release \
     xdg-utils \
+    curl \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Install Chromium manually (venom-bot needs this)
+RUN apt-get update && apt-get install -y chromium
+
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files first
+# Copy dependencies
 COPY package*.json ./
-
-# Clear npm cache and install dependencies
-RUN npm cache clean --force
 RUN npm install --production
 
-# Copy app source
+# Copy app
 COPY . .
 
-# Create directories for session data
+# Create directory for venom sessions
 RUN mkdir -p tokens
 
-# Expose port (Railway automatically assigns PORT)
-EXPOSE $PORT
+# Expose port (Railway sets this automatically)
+EXPOSE 3000
 
-# Run the application
+# Start the app
 CMD ["npm", "start"]
