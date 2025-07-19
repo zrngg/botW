@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "install": "npm install --no-fund --no-audit --loglevel=error"
   },
   "dependencies": {
     "venom-bot": "^5.0.2",
