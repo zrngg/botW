@@ -9,10 +9,10 @@
     "dev": "node index.js"
   },
   "dependencies": {
-    "venom-bot": "^5.0.2",
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0",
     "node-fetch": "^3.3.2",
-    "moment-timezone": "^0.5.45",
-    "puppeteer": "^23.9.0"
+    "moment-timezone": "^0.5.45"
   },
   "engines": {
     "node": ">=20.0.0"
